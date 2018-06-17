@@ -1,0 +1,25 @@
+[package]
+name = "nimikirsu"
+version = "0.0.1"
+authors = ["Ossi Herrala <oherrala@iki.fi>"]
+
+[[bin]]
+name = "nimikirsu"
+path = "src/main.rs"
+
+[lib]
+name = "kirsulib"
+path = "lib/lib.rs"
+
+[profile.release]
+lto = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false }
+env_logger = { version = "0.5", default_features = false }
+libc = "0.2"
+log = "0.4"
+untrustended = { path = "../../gits/untrustended" }
+
+[build-dependencies]
+bindgen = { version = "0.37", default_features = false }
