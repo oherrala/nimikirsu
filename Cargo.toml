@@ -19,7 +19,11 @@ chrono = { version = "0.4", default-features = false }
 env_logger = { version = "0.5", default_features = false }
 libc = "0.2"
 log = "0.4"
-untrustended = { path = "../../gits/untrustended" }
+untrusted = "0.6"
+untrustended = "0.2"
 
 [build-dependencies]
 bindgen = { version = "0.37", default_features = false }
+
+[patch.crates-io]
+untrusted = { git = "https://github.com/oherrala/untrusted", branch = "clone-n-copy-mark" }

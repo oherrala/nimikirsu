@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str;
 
-use untrustended::untrusted::{Input, Reader};
+use untrusted::{Input, Reader};
 use untrustended::{self, ReaderExt};
 
 /// +---------------------+

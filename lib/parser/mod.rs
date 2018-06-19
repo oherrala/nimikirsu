@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use untrustended::untrusted::{Input, Reader};
+use untrusted::{Input, Reader};
 use untrustended::{self, ReaderExt};
 
 pub mod dns;
