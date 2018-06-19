@@ -1,22 +1,45 @@
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate structopt;
 
-extern crate env_logger;
+extern crate stderrlog;
 extern crate kirsulib;
 
 use std::io;
 
 use kirsulib::{parser, pcap::Pcap};
 
-fn main() -> io::Result<()> {
-    env_logger::init();
-    info!("Main");
+use structopt::StructOpt;
 
-    let pcap = Pcap::new("en0")?;
+#[derive(Debug, StructOpt)]
+#[structopt(name = "nimikirsu", about = "A passive DNS")]
+struct Opt {
+    /// libpcap capture device
+    #[structopt(short = "d", long = "device")]
+    device: String,
+
+    /// Verbose mode (-v, -vv, -vvv, etc)
+    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
+    verbose: usize,
+}
+
+fn main() -> io::Result<()> {
+    let opt = Opt::from_args();
+    stderrlog::new()
+        .modules(vec!["nimikirsu", "kirsulib"])
+        .verbosity(opt.verbose)
+        .timestamp(stderrlog::Timestamp::Microsecond)
+        .init()
+        .unwrap();
+
+    debug!("Command line options parsed: {:?}", opt);
+
+    let pcap = Pcap::new(&opt.device)?;
+    pcap.set_immediate_mode(true)?;
     pcap.set_snaplen(65535)?;
     pcap.set_promisc(true)?;
     pcap.set_buffer_size(2 * 1024 * 1024)?;
-    pcap.set_immediate_mode(true)?;
 
     pcap.activate()?;
     pcap.set_filter("port 53 or port 5353")?;
