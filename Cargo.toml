@@ -29,6 +29,8 @@ collect = [ "sha1" ]
 chrono = { version = "0.4", default-features = false }
 libc = "0.2"
 log = "0.4"
+nix = "0.7"
+privdrop = "0.2"
 sha1 = { version = "0.6", optional = true }
 stderrlog = "0.4"
 structopt = "0.2"

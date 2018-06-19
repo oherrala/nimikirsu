@@ -2,15 +2,20 @@
 extern crate log;
 #[macro_use]
 extern crate structopt;
+extern crate privdrop;
 
 extern crate stderrlog;
 extern crate kirsulib;
+extern crate nix;
 
 use std::io;
+use std::path::PathBuf;
+
+use structopt::StructOpt;
+use nix::unistd;
 
 use kirsulib::{parser, pcap::Pcap};
 
-use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "nimikirsu", about = "A passive DNS")]
@@ -22,6 +27,14 @@ struct Opt {
     /// Verbose mode (-v, -vv, -vvv, etc)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbose: usize,
+
+    /// setuid user
+    #[structopt(long = "user")]
+    setuid_user: Option<String>,
+
+    /// chroot path
+    #[structopt(long = "chroot", parse(from_os_str))]
+    chroot_dir: Option<PathBuf>,
 }
 
 fn main() -> io::Result<()> {
@@ -43,6 +56,25 @@ fn main() -> io::Result<()> {
 
     pcap.activate()?;
     pcap.set_filter("port 53 or port 5353")?;
+
+    if unistd::geteuid() == 0 {
+        let mut pd = privdrop::PrivDrop::default();
+        if let Some(user) = opt.setuid_user {
+            pd = pd.user(&user).unwrap_or_else(|e| { panic!("Failed to drop privileges: {}", e) });
+        }
+        if let Some(chroot) = opt.chroot_dir {
+            pd = pd.chroot(chroot);
+        }
+        pd.apply()
+            .unwrap_or_else(|e| { panic!("Failed to drop privileges: {}", e) });
+    } else {
+        if let Some(user) = opt.setuid_user {
+            panic!("Cannot setuid to {}: Not running as root", user);
+        }
+        if let Some(chroot) = opt.chroot_dir {
+            panic!("Cannot chroot to {:?}: Not running as root", chroot);
+        }
+    }
 
     for packet in pcap.iter() {
         let frame = match parser::EthernetFrame::try_from(&packet.data) {
