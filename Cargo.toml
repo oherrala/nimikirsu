@@ -2,6 +2,13 @@
 name = "nimikirsu"
 version = "0.0.1"
 authors = ["Ossi Herrala <oherrala@iki.fi>"]
+homepage = "https://github.com/oherrala/nimikirsu"
+repository = "https://github.com/oherrala/nimikirsu"
+license = "MIT"
+readme = "README.md"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [[bin]]
 name = "nimikirsu"
@@ -20,10 +27,11 @@ collect = [ "sha1" ]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false }
-env_logger = { version = "0.5", default_features = false }
 libc = "0.2"
 log = "0.4"
 sha1 = { version = "0.6", optional = true }
+stderrlog = "0.4"
+structopt = "0.2"
 untrusted = "0.6"
 untrustended = "0.2"
 
