@@ -14,11 +14,16 @@ path = "lib/lib.rs"
 [profile.release]
 lto = true
 
+[features]
+default = []
+collect = [ "sha1" ]
+
 [dependencies]
 chrono = { version = "0.4", default-features = false }
 env_logger = { version = "0.5", default_features = false }
 libc = "0.2"
 log = "0.4"
+sha1 = { version = "0.6", optional = true }
 untrusted = "0.6"
 untrustended = "0.2"
 

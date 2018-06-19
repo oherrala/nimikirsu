@@ -61,6 +61,9 @@ fn main() -> io::Result<()> {
                 };
                 debug!("{:?}", dns_message);
 
+                #[cfg(feature = "collect")]
+                collect::store(&udp_packet.payload)?;
+
                 let qr = match dns_message.header.qr {
                     parser::dns::Qr::Query => "Query",
                     parser::dns::Qr::Response => "Response",
@@ -91,4 +94,21 @@ fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(feature = "collect")]
+mod collect {
+    extern crate sha1;
+
+    use std::fs;
+    use std::io;
+    use std::io::Write;
+
+    pub fn store(buf: &[u8]) -> io::Result<()> {
+        let mut m = sha1::Sha1::new();
+        m.update(buf);
+        let name = m.digest().to_string();
+        let mut f = fs::File::create(format!("collected/{}.collected", name))?;
+        f.write_all(buf)
+    }
 }
