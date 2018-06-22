@@ -10,6 +10,7 @@ extern crate nix;
 
 use std::io;
 use std::path::PathBuf;
+use std::process;
 
 use structopt::StructOpt;
 use nix::unistd;
@@ -59,19 +60,26 @@ fn main() -> io::Result<()> {
     if unistd::geteuid() == 0 {
         let mut pd = privdrop::PrivDrop::default();
         if let Some(user) = opt.setuid_user {
-            pd = pd.user(&user).unwrap_or_else(|e| { panic!("Failed to drop privileges: {}", e) });
+            pd = pd.user(&user).unwrap_or_else(|e| {
+                eprintln!("Failed to drop privileges: {}", e);
+                process::exit(1);
+            });
         }
         if let Some(chroot) = opt.chroot_dir {
             pd = pd.chroot(chroot);
         }
-        pd.apply()
-            .unwrap_or_else(|e| { panic!("Failed to drop privileges: {}", e) });
+        pd.apply().unwrap_or_else(|e| {
+            eprintln!("Failed to drop privileges: {}", e);
+            process::exit(1);
+        });
     } else {
         if let Some(user) = opt.setuid_user {
-            panic!("Cannot setuid to {}: Not running as root", user);
+            eprintln!("Cannot setuid to {}: Not running as root", user);
+            process::exit(1);
         }
         if let Some(chroot) = opt.chroot_dir {
-            panic!("Cannot chroot to {:?}: Not running as root", chroot);
+            eprintln!("Cannot chroot to {:?}: Not running as root", chroot);
+            process::exit(1);
         }
     }
 
