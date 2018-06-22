@@ -170,15 +170,13 @@ impl<'a> Iterator for PcapIter<'a> {
             }
 
             // -1 if an error occurred while reading the packet
-            -1 => {
-                match self.p.get_error() {
-                    Ok(err) => {
-                        let err = io::Error::new(io::ErrorKind::Interrupted, err);
-                        return Some(Err(err));
-                    }
-                     Err(err) => return Some(Err(err)),
+            -1 => match self.p.get_error() {
+                Ok(err) => {
+                    let err = io::Error::new(io::ErrorKind::Interrupted, err);
+                    return Some(Err(err));
                 }
-            }
+                Err(err) => return Some(Err(err)),
+            },
 
             // -2 if packets are being read from a ``savefile'' and there are no
             // more packets to read from the savefile

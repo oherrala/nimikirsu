@@ -6,5 +6,5 @@ extern crate libc;
 extern crate untrusted;
 extern crate untrustended;
 
-pub mod pcap;
 pub mod parser;
+pub mod pcap;

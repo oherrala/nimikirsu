@@ -2,18 +2,18 @@
 extern crate log;
 #[macro_use]
 extern crate structopt;
-extern crate privdrop;
 
-extern crate stderrlog;
 extern crate kirsulib;
 extern crate nix;
+extern crate privdrop;
+extern crate stderrlog;
 
 use std::io;
 use std::path::PathBuf;
 use std::process;
 
-use structopt::StructOpt;
 use nix::unistd;
+use structopt::StructOpt;
 
 use kirsulib::{parser, pcap::Pcap};
 
@@ -134,17 +134,15 @@ fn main() -> io::Result<()> {
                 use parser::dns::{Qr, Rcode};
                 let qr = match dns_message.header.qr {
                     Qr::Query => "Query",
-                    Qr::Response => {
-                        match dns_message.header.rcode {
-                            Rcode::NoError => "Response",
-                            Rcode::FormatError => "Response(FormatError)",
-                            Rcode::ServerFailure => "Response(ServerFailure)",
-                            Rcode::NameError => "Response(NameError)",
-                            Rcode::NotImplemented => "Response(NotImplemented)",
-                            Rcode::Refused => "Response(Refused)",
-                            Rcode::FutureUse(_) => "Response(FutureUse)",
-                        }
-                    }
+                    Qr::Response => match dns_message.header.rcode {
+                        Rcode::NoError => "Response",
+                        Rcode::FormatError => "Response(FormatError)",
+                        Rcode::ServerFailure => "Response(ServerFailure)",
+                        Rcode::NameError => "Response(NameError)",
+                        Rcode::NotImplemented => "Response(NotImplemented)",
+                        Rcode::Refused => "Response(Refused)",
+                        Rcode::FutureUse(_) => "Response(FutureUse)",
+                    },
                 };
 
                 let questions: Vec<String> = dns_message
