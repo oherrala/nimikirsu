@@ -64,7 +64,7 @@ impl IPv4Packet {
 
         // Header length in bytes
         let header_len = (first_byte & 0b0000_1111) * 4;
-        if header_len < 5 * 4 {
+        if header_len < 20 || header_len > 60 {
             warn!("Invalid header length for IPv4: {}", header_len);
             return Err(untrustended::Error::ParseError);
         }
@@ -88,7 +88,8 @@ impl IPv4Packet {
         let destination = input.read_ipv4addr()?;
 
         // Options. We don't care.
-        let _options = input.skip_and_get_input(usize::from(header_len - 20));
+        let options_len = usize::from(header_len - 20);
+        let _options = input.skip_and_get_input(options_len)?;
 
         let payload = Vec::from(input.skip_to_end().as_slice_less_safe());
 
