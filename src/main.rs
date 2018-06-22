@@ -16,7 +16,6 @@ use nix::unistd;
 
 use kirsulib::{parser, pcap::Pcap};
 
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "nimikirsu", about = "A passive DNS")]
 struct Opt {
@@ -76,7 +75,12 @@ fn main() -> io::Result<()> {
         }
     }
 
-    for packet in pcap.iter() {
+    for packet_or_err in pcap.iter() {
+        let packet = match packet_or_err {
+            Ok(packet) => packet,
+            Err(err) => panic!("Error from Pcap::Iterator: {}", err),
+        };
+
         let frame = match parser::EthernetFrame::try_from(&packet.data) {
             Ok(f) => f,
             Err(err) => {
@@ -119,9 +123,20 @@ fn main() -> io::Result<()> {
                 #[cfg(feature = "collect")]
                 collect::store(&udp_packet.payload)?;
 
+                use parser::dns::{Qr, Rcode};
                 let qr = match dns_message.header.qr {
-                    parser::dns::Qr::Query => "Query",
-                    parser::dns::Qr::Response => "Response",
+                    Qr::Query => "Query",
+                    Qr::Response => {
+                        match dns_message.header.rcode {
+                            Rcode::NoError => "Response",
+                            Rcode::FormatError => "Response(FormatError)",
+                            Rcode::ServerFailure => "Response(ServerFailure)",
+                            Rcode::NameError => "Response(NameError)",
+                            Rcode::NotImplemented => "Response(NotImplemented)",
+                            Rcode::Refused => "Response(Refused)",
+                            Rcode::FutureUse(_) => "Response(FutureUse)",
+                        }
+                    }
                 };
 
                 let questions: Vec<String> = dns_message

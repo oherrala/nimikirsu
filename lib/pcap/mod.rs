@@ -1,6 +1,6 @@
 use libc::{c_int, c_uchar};
 use std::ffi::{CStr, CString};
-use std::fmt;
+use std::fmt::{self, Write};
 use std::io;
 use std::mem;
 use std::ptr;
@@ -153,7 +153,7 @@ impl Drop for Pcap {
 }
 
 impl<'a> Iterator for PcapIter<'a> {
-    type Item = Packet;
+    type Item = io::Result<Packet>;
 
     fn next(&mut self) -> Option<Self::Item> {
         trace!("PcapIter::next");
@@ -162,12 +162,29 @@ impl<'a> Iterator for PcapIter<'a> {
 
         let ret = unsafe { pcap_next_ex(self.p.p, &mut header, &mut packet) };
         match ret {
-            0 => panic!("timeout on pcap_next_ex()"),
-            -1 => {
-                let err = self.p.get_error().unwrap();
-                panic!("pcap_activate failed: {}", err);
+            // 0 if packets are being read from a live capture and the timeout
+            // expired
+            0 => {
+                let err = io::Error::new(io::ErrorKind::TimedOut, "timeout on pcap_next_ex()");
+                return Some(Err(err));
             }
+
+            // -1 if an error occurred while reading the packet
+            -1 => {
+                match self.p.get_error() {
+                    Ok(err) => {
+                        let err = io::Error::new(io::ErrorKind::Interrupted, err);
+                        return Some(Err(err));
+                    }
+                     Err(err) => return Some(Err(err)),
+                }
+            }
+
+            // -2 if packets are being read from a ``savefile'' and there are no
+            // more packets to read from the savefile
             -2 => return None,
+
+            // 1 == success
             _ => (),
         }
 
@@ -175,17 +192,19 @@ impl<'a> Iterator for PcapIter<'a> {
         let ts = Utc.timestamp(timeval.tv_sec, timeval.tv_usec as u32);
 
         let caplen: usize = unsafe { (*header).caplen } as usize;
-        debug!("Capture len {}", caplen);
         let slice = unsafe { ::std::slice::from_raw_parts(packet, caplen) };
+
         let packet = Packet {
             timestamp: ts,
             data: Vec::from(slice),
         };
+
         debug!(
             "Received packet with data (snaplen {}):\n{:?}",
             caplen, packet
         );
-        Some(packet)
+
+        Some(Ok(packet))
     }
 }
 
@@ -210,8 +229,7 @@ impl fmt::Debug for Packet {
 fn to_hex(bytes: &[u8]) -> String {
     let mut buf = String::with_capacity(2 * bytes.len());
     for byte in bytes {
-        let hex = format!("{:02x}", byte);
-        buf.push_str(&hex);
+        write!(&mut buf, "{:02x}", byte).expect("write! to String");
     }
     buf
 }
