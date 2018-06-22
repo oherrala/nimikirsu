@@ -18,5 +18,20 @@ git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 members = ["."]
 
 [[bin]]
+name = "fuzz_ethernet"
+path = "fuzz_targets/fuzz_ethernet.rs"
+
+[[bin]]
+name = "fuzz_ipv4"
+path = "fuzz_targets/fuzz_ipv4.rs"
+
+[[bin]]
+name = "fuzz_udp"
+path = "fuzz_targets/fuzz_udp.rs"
+
+[[bin]]
 name = "fuzz_dns"
 path = "fuzz_targets/fuzz_dns.rs"
+
+[patch.crates-io]
+untrusted = { git = "https://github.com/oherrala/untrusted", branch = "clone-n-copy-mark" }
