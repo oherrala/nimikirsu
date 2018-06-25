@@ -33,5 +33,9 @@ path = "fuzz_targets/fuzz_udp.rs"
 name = "fuzz_dns"
 path = "fuzz_targets/fuzz_dns.rs"
 
+[[bin]]
+name = "fuzz_parsedpacket"
+path = "fuzz_targets/fuzz_parsedpacket.rs"
+
 [patch.crates-io]
 untrusted = { git = "https://github.com/oherrala/untrusted", branch = "clone-n-copy-mark" }
