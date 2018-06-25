@@ -15,7 +15,7 @@ use std::process;
 use nix::unistd;
 use structopt::StructOpt;
 
-use kirsulib::{parser, pcap::Pcap};
+use kirsulib::{parser, parser::dns, pcap::Pcap};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "nimikirsu", about = "A passive DNS")]
@@ -84,88 +84,69 @@ fn main() -> io::Result<()> {
     }
 
     for packet_or_err in pcap.iter() {
-        let packet = match packet_or_err {
+        let raw_packet = match packet_or_err {
             Ok(packet) => packet,
             Err(err) => panic!("Error from Pcap::Iterator: {}", err),
         };
 
-        let frame = match parser::EthernetFrame::try_from(&packet.data) {
-            Ok(f) => f,
-            Err(err) => {
-                warn!("Error parsing EthernetFrame: {}", err);
-                continue;
-            }
+        let packet = match parser::ParsedPacket::try_from(&raw_packet.data) {
+            Ok(s) => s,
+            Err(_) => continue,
         };
-        debug!("{:?}", frame);
 
-        let ipv4_packet = match parser::IPv4Packet::try_from(&frame.payload) {
-            Ok(f) => f,
-            Err(err) => {
-                warn!("Error parsing IPv4Packet: {}", err);
-                continue;
-            }
-        };
-        debug!("{:?}", ipv4_packet);
+        let timestamp = raw_packet.timestamp;
 
-        // UDP Protocol
-        if ipv4_packet.protocol == 17 {
-            let udp_packet = match parser::UdpPacket::try_from(&ipv4_packet.payload) {
+        if packet.source.port() == 53
+            || packet.source.port() == 5353
+            || packet.destination.port() == 53
+            || packet.destination.port() == 5353
+        {
+            let dns_message = match dns::Message::try_from(packet.payload.as_slice_less_safe()) {
                 Ok(f) => f,
                 Err(err) => {
-                    warn!("Error parsing UdpPacket: {}", err);
-                    continue;
+                    panic!("Error parsing DNS Message: {}", err);
+                    // continue;
                 }
             };
-            debug!("{:?}", udp_packet);
+            debug!("{:?}", dns_message);
 
-            if udp_packet.source == 53 || udp_packet.destination == 53 {
-                let dns_message = match parser::dns::Message::try_from(&udp_packet.payload) {
-                    Ok(f) => f,
-                    Err(err) => {
-                        warn!("Error parsing DNS Message: {}", err);
-                        continue;
-                    }
-                };
-                debug!("{:?}", dns_message);
+            #[cfg(feature = "collect")]
+            collect::store(&udp_packet.payload)?;
 
-                #[cfg(feature = "collect")]
-                collect::store(&udp_packet.payload)?;
+            use parser::dns::{Qr, Rcode};
+            let qr = match dns_message.header.qr {
+                Qr::Query => "Query",
+                Qr::Response => match dns_message.header.rcode {
+                    Rcode::NoError => "Response",
+                    Rcode::FormatError => "Response(FormatError)",
+                    Rcode::ServerFailure => "Response(ServerFailure)",
+                    Rcode::NameError => "Response(NameError)",
+                    Rcode::NotImplemented => "Response(NotImplemented)",
+                    Rcode::Refused => "Response(Refused)",
+                    Rcode::FutureUse(_) => "Response(FutureUse)",
+                },
+            };
 
-                use parser::dns::{Qr, Rcode};
-                let qr = match dns_message.header.qr {
-                    Qr::Query => "Query",
-                    Qr::Response => match dns_message.header.rcode {
-                        Rcode::NoError => "Response",
-                        Rcode::FormatError => "Response(FormatError)",
-                        Rcode::ServerFailure => "Response(ServerFailure)",
-                        Rcode::NameError => "Response(NameError)",
-                        Rcode::NotImplemented => "Response(NotImplemented)",
-                        Rcode::Refused => "Response(Refused)",
-                        Rcode::FutureUse(_) => "Response(FutureUse)",
-                    },
-                };
-
-                let questions: Vec<String> = dns_message
-                    .question
-                    .iter()
-                    .map(|q| q.qname.to_string())
-                    .collect();
-                let answers: Vec<String> = dns_message
-                    .answer
-                    .iter()
-                    .map(|rr| format!("{} = {:?}", rr.name, rr.rdata))
-                    .collect();
-                println!(
-                    "{} {} -> {}: ID: {}, QR: {}, questions: {}, answers: {}",
-                    packet.timestamp.to_rfc3339(),
-                    ipv4_packet.source,
-                    ipv4_packet.destination,
-                    dns_message.header.id,
-                    qr,
-                    questions.join(", "),
-                    answers.join(", "),
-                );
-            }
+            let questions: Vec<String> = dns_message
+                .question
+                .iter()
+                .map(|q| q.qname.to_string())
+                .collect();
+            let answers: Vec<String> = dns_message
+                .answer
+                .iter()
+                .map(|rr| format!("{} = {:?}", rr.name, rr.rdata))
+                .collect();
+            println!(
+                "{} {} -> {}: ID: {}, QR: {}, questions: {}, answers: {}",
+                timestamp.to_rfc3339(),
+                packet.source,
+                packet.destination,
+                dns_message.header.id,
+                qr,
+                questions.join(", "),
+                answers.join(", "),
+            );
         }
     }
 
