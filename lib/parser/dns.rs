@@ -442,19 +442,8 @@ fn read_name(read_so_far: Input, input: &mut Reader) -> Result<String, untrusten
             }
 
             let bytes = input.read_bytes_less_safe(len as usize)?;
-            if !bytes.iter().all(|l| char::from(*l).is_ascii()) {
-                let label: Vec<char> = bytes.iter().map(|l| char::from(*l)).collect();
-                warn!("Invalid DNS label: {:?}", label);
-                return Err(ParseError);
-            }
+            let label = String::from_utf8_lossy(bytes);
 
-            let label = match str::from_utf8(bytes) {
-                Ok(l) => l,
-                Err(err) => {
-                    warn!("Converting to string failed for {:?}: {}", bytes, err);
-                    return Err(ParseError);
-                }
-            };
             trace!("Read label \"{}\"", label);
             name_len += usize::from(len);
             label.to_string()
