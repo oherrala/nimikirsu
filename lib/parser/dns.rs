@@ -1,5 +1,4 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::str;
 
 use untrusted::{Input, Mark, Reader};
 use untrustended::Error::ParseError;
@@ -177,11 +176,9 @@ impl Header {
         let recursion_available = bitfield & 0b0000_0001_0000_0000 > 0;
 
         // Reserved for future use.  Must be zero in all queries and responses.
-        let z = bitfield & 0b0000_0000_0111_0000;
-        if z != 0 {
-            warn!("DNS Header Z must be zero: z = {}", z);
-            return Err(ParseError);
-        }
+        // However, we skip validation because later specs (than RFC1035) might
+        // define some use for this field.
+        let _z = bitfield & 0b0000_0000_0111_0000;
 
         let rcode = match bitfield & 0b0000_0000_0000_1111 {
             0 => Rcode::NoError,
