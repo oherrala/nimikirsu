@@ -405,6 +405,18 @@ fn read_name(read_so_far: Input, input: &mut Reader) -> Result<String, untrusten
             break;
         }
 
+        if (len >> 6) == 0b01 {
+            // Binary Labels are deprecated by https://tools.ietf.org/html/rfc6891
+            error!("Deprecated Binary Label found. Ignoring it");
+            return Ok(String::from("RFC2673.Binary.Label.not.supported.invalid"));
+        }
+
+        if (len >> 6) == 0b10 {
+            // Dunno what this is but we don't support it (yet).
+            error!("Dunno what label we found, but we are ignoring it");
+            return Ok(String::from("dunno.what.label.but.not.supported.invalid"));
+        }
+
         trace!("DNS label length field: {}", len);
         let offset: usize = if (len >> 6) == 0b11 {
             debug!("DNS label compression found");
