@@ -298,11 +298,13 @@ pub enum RData {
     Opt(),
     Ptr(String),
     Soa(),
-    Txt(),
+    Srv(String),
+    Txt(String),
+    Nsec(String),
     UnhandledType(u16),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Class {
     IN,
     Unknown(u16),
@@ -325,16 +327,18 @@ impl ResourceRecord {
             1 => Class::IN,
             n => Class::Unknown(n),
         };
+        trace!("Read Class: {:?}", class);
+
 
         let ttl = input.read_u32be()?;
         trace!("Read TTL: {}", ttl);
 
         let rdlength = input.read_u16be()?;
-        trace!("Read RData length: {}", rdlength);
 
         let mark2 = input.mark();
         let read_so_far = input.get_input_between_marks(mark1, mark2)?;
 
+        trace!("Reading RData type {} and length {}", rr_type, rdlength);
         let rdata_raw = input.skip_and_get_input(rdlength as usize)?;
         let rdata: RData = match rr_type {
             // A     1 a host address
@@ -367,11 +371,38 @@ impl ResourceRecord {
             // https://tools.ietf.org/html/rfc3596
             28 => RData::IPv6Addr(rdata_raw.read_all(ParseError, |i| i.read_ipv6addr())?),
             // TXT   16 text strings
-            16 => RData::Txt(),
+            16 => RData::Txt(
+                rdata_raw.read_all(ParseError, |i| {
+                    let bytes = i.skip_to_end().as_slice_less_safe();
+                    Ok(String::from_utf8_lossy(bytes).to_string())
+                })?
+            ),
+
+            // SRV 33 https://tools.ietf.org/html/rfc2782
+            33 => RData::Srv(
+                rdata_raw.read_all(ParseError, |i| {
+                    let _priority = i.read_u16be()?;
+                    let _weight = i.read_u16be()?;
+                    let _port = i.read_u16be()?;
+                    let target = read_name(read_so_far, i)?;
+                    Ok(target)
+                })?
+            ),
+
             // OPT 44 An OPT pseudo-RR (sometimes called a meta-RR) MAY be added
             // to the additional data section of a request.
             // https://tools.ietf.org/html/rfc6891
             44 => RData::Opt(),
+
+            // NSEC https://tools.ietf.org/html/rfc4034#section-4
+            47 => RData::Nsec(
+                rdata_raw.read_all(ParseError, |i| {
+                    let next_name = read_name(read_so_far, i)?;
+                    let _bitmaps_field = i.skip_to_end();
+                    Ok(next_name)
+                })?
+            ),
+
             n => RData::UnhandledType(n),
         };
         trace!("Read RData: {:?}", rdata);
