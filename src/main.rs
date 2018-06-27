@@ -127,25 +127,37 @@ fn main() -> io::Result<()> {
                 },
             };
 
-            let questions: Vec<String> = dns_message
-                .question
-                .iter()
-                .map(|q| q.qname.to_string())
-                .collect();
-            let answers: Vec<String> = dns_message
-                .answer
-                .iter()
-                .map(|rr| format!("{} = {:?}", rr.name, rr.rdata))
-                .collect();
+            let questions: String = if dns_message.question.is_empty() {
+                String::new()
+            } else {
+                let qs: Vec<String> = dns_message
+                    .question
+                    .iter()
+                    .map(|q| q.qname.to_string())
+                    .collect();
+                format!("questions: {}.", qs.join(", "))
+            };
+
+            let answers: String = if dns_message.answer.is_empty() {
+                String::new()
+            } else {
+                let qs: Vec<String> = dns_message
+                    .answer
+                    .iter()
+                    .map(|rr| format!("{} = {:?}", rr.name, rr.rdata))
+
+                    .collect();
+                format!("answers: {}.", qs.join(", "))
+            };
+
             println!(
-                "{} {} -> {}: ID: {}, QR: {}, questions: {}, answers: {}",
+                "{} {} -> {}: ID: {}, QR: {}, {}",
                 timestamp.to_rfc3339(),
                 packet.source,
                 packet.destination,
                 dns_message.header.id,
                 qr,
-                questions.join(", "),
-                answers.join(", "),
+                vec![questions, answers].join(" "),
             );
         }
     }
