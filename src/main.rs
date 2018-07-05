@@ -113,8 +113,12 @@ fn main() -> io::Result<()> {
             let dns_message = match dns::Message::try_from(packet.payload.as_slice_less_safe()) {
                 Ok(f) => f,
                 Err(err) => {
-                    panic!("Error parsing DNS Message: {}", err);
-                    // continue;
+                    if cfg!(debug_assertions) {
+                        panic!("Error parsing DNS Message: {}", err);
+                    } else {
+                        error!("Error parsing DNS Message: {}", err);
+                        continue;
+                    }
                 }
             };
             debug!("{:?}", dns_message);
