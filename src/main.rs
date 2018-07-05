@@ -24,6 +24,10 @@ struct Opt {
     #[structopt(short = "d", long = "device")]
     device: String,
 
+    /// Enable Multicast DNS
+    #[structopt(short = "m", long = "multicast")]
+    multicast: bool,
+
     /// Verbose mode (-v, -vv, -vvv, etc)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbose: usize,
@@ -55,7 +59,12 @@ fn main() -> io::Result<()> {
     pcap.set_buffer_size(2 * 1024 * 1024)?;
 
     pcap.activate()?;
-    pcap.set_filter("port 53 or port 5353")?;
+
+    if opt.multicast {
+        pcap.set_filter("port 53 or port 5353")?;
+    } else {
+        pcap.set_filter("port 53")?;
+    }
 
     if unistd::geteuid() == 0 {
         let mut pd = privdrop::PrivDrop::default();
